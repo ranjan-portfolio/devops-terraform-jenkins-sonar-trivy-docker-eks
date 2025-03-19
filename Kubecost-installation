@@ -1,0 +1,83 @@
+
+
+Kubecost is valid from 1.20—1.29v
+
+Follow below document for deployment steps
+
+https://docs.kubecost.com/install-and-configure/install/provider-installations/aws-eks-cost-monitoring
+
+
+
+eksctl create cluster --version=1.29 --name=kubecostdemo
+
+eksctl utils associate-iam-oidc-provider \
+    --region us-east-1 \
+    --cluster kubecostdemo \
+    --approve
+
+eksctl create iamserviceaccount   \
+    --name ebs-csi-controller-sa   \
+    --namespace kube-system   \
+    --cluster kubecostdemo   \
+    --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy  \
+    --approve \
+    --role-only \
+    --role-name AmazonEKS_EBS_CSI_DriverRole
+
+export SERVICE_ACCOUNT_ROLE_ARN=$(aws iam get-role --role-name AmazonEKS_EBS_CSI_DriverRole --output json | jq -r '.Role.Arn')
+
+
+eksctl create addon --name aws-ebs-csi-driver --cluster kubecostdemo \
+    --service-account-role-arn $SERVICE_ACCOUNT_ROLE_ARN --force
+
+Go to AWS marketplace
+
+Search for kubecost and select Kubecost- Amazon EKS cost monitoring
+
+Click on view purchase option,Click on continue to configuration button to add the add-on in ekscluster
+
+
+
+
+
+￼
+￼
+
+
+
+￼
+￼
+
+Click ‘Launch on Amazon EKS Console’
+
+Click on cluster name here ‘kubecostdemo’
+
+
+
+￼
+Click on ‘Add-Ons’
+
+
+￼
+
+Click on Get more add-ons and search for kubecost ,select the add-on and click next
+
+
+￼
+￼
+￼
+
+Before pressing create button please attach the service role created in pre-requisites
+
+￼
+
+
+Press Create button
+
+￼
+
+Expose the service
+
+ kubectl port-forward deployment.apps/cost-analyzer -n kubecost 9090
+
+￼
