@@ -1,0 +1,157 @@
+🛠 Kubernetes Installation in AWS Bare Metal Using KubeAdm
+This guide covers the step-by-step installation of Kubernetes on AWS EC2 instances using KubeAdm.
+
+📌 Prerequisites
+✅ Enable the following ports on all EC2 instances:
+22 (SSH)
+80 (HTTP)
+443 (HTTPS)
+6443 (Kubernetes API Server)
+🔹 Step 1: Install Docker
+Run the following commands to install Docker:
+
+sh
+Copy
+Edit
+# Remove existing Docker versions
+sudo yum remove docker \
+                  docker-client \
+                  docker-client-latest \
+                  docker-common \
+                  docker-latest \
+                  docker-latest-logrotate \
+                  docker-logrotate \
+                  docker-engine
+
+# Install required dependencies
+sudo yum install -y yum-utils
+
+# Add Docker repository
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+# Install Docker
+sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Start Docker
+sudo systemctl start docker
+🔹 Step 2: Install cri-dockerd
+Kubernetes has discontinued Docker support. The cri-dockerd is required for runtime support.
+
+sh
+Copy
+Edit
+# Install Git
+sudo yum install git
+
+# Clone cri-dockerd repository
+git clone https://github.com/Mirantis/cri-dockerd.git
+
+# Install Go
+sudo yum install go
+
+# Build cri-dockerd (this may take time)
+cd cri-dockerd
+make cri-dockerd
+
+# Install cri-dockerd
+mkdir -p /usr/local/bin
+sudo install -o root -g root -m 0755 cri-dockerd /usr/local/bin/cri-dockerd
+sudo install packaging/systemd/* /etc/systemd/system
+
+# Configure systemd service
+sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+
+# Reload systemd and enable cri-dockerd service
+sudo systemctl daemon-reload
+sudo systemctl enable --now cri-docker.socket
+🔎 Verify cri-dockerd Status
+sh
+Copy
+Edit
+# Check running processes
+ps -aef | grep cri-dockerd
+
+# Check service logs
+systemctl status cri-docker
+
+# Start cri-docker service if not running
+sudo systemctl start cri-docker
+🔹 Step 3: Install KubeAdm, Kubelet, and Kubectl
+sh
+Copy
+Edit
+# Disable SELinux
+sudo setenforce 0
+sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+📝 Configure Kubernetes Repository
+sh
+Copy
+Edit
+cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/repodata/repomd.xml.key
+exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
+EOF
+📦 Install Kubernetes Components
+sh
+Copy
+Edit
+sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+sudo systemctl enable --now kubelet
+🔹 Step 4: Initialize Kubernetes Cluster (Master Node Only)
+Run the following command ONLY on the master node:
+
+sh
+Copy
+Edit
+sudo kubeadm init --cri-socket /var/run/cri-dockerd.sock
+🛠 Configure kubectl for Cluster Access
+sh
+Copy
+Edit
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+⚠️ Note: The above commands should be executed as a regular user, not root.
+
+🔹 Step 5: Join Worker Nodes
+After running kubeadm init successfully on the master node, it will generate a join command.
+Use that command to add worker nodes. Below is an example (Do NOT copy-paste directly):
+
+sh
+Copy
+Edit
+sudo kubeadm join 172.31.34.235:6443 --token zp1y6a.3qvtegpe506jhw3o \
+      --discovery-token-ca-cert-hash sha256:65229eb4f20f161cfe52604e44c02349fb1dcdf6c6c65e8f19001c30c1afb027 \
+      --cri-socket /var/run/cri-dockerd.sock
+🔹 Step 6: Install Calico for Networking
+To implement networking and network policy, install Calico on the master node:
+
+sh
+Copy
+Edit
+curl https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/calico.yaml -O
+kubectl apply -f calico.yaml
+🔎 Verify Cluster Status
+sh
+Copy
+Edit
+kubectl get nodes
+This should list all nodes in the cluster with a Ready status.
+
+🎯 Conclusion
+You have successfully installed Kubernetes on AWS Bare Metal using KubeAdm.
+This guide covered setting up Docker, cri-dockerd, Kubernetes components, and Calico networking. 🚀
+
+📚 Reference
+For more details, visit the official Calico documentation:
+🔗 Calico Installation Guide
+
+💬 Need Help?
+Feel free to raise an issue or contribute to improve this guide! 🎯
+
+🚀 Happy Kubernetes-ing! 🎉
