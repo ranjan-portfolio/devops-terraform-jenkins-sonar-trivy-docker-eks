@@ -1,0 +1,11 @@
+#Cluster-Autoscaler
+
+Eksctl create cluster —name my-cluster —version 1.30 —managed —asg-access
+
+
+asg-access creates auto-scaling group with necessary IAM role required by cluster to scale nodes
+
+
+Deploy cluster autoscaler
+
+kubectl apply -f https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml
