@@ -1,0 +1,46 @@
+Prometheus and Grafana  deployment in EKS
+
+
+helm repo add stable https://charts.helm.sh/stable
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+
+helm repo update
+
+kubectl create namespace prometheus
+
+helm install stable prometheus-community/kube-prometheus-stack -n prometheus
+
+
+
+Service to be exposed for prometheus and grafana
+
+kubectl port-forward service/stable-kube-prometheus-sta-prometheus 9090:9090 -n prometheus
+
+kubectl port-forward service/stable-grafana 9000:80 -n prometheus
+
+
+
+
+For loadbalancing the service edit the above service yaml file and change the serviceType to LoadBalance from ClusterIP
+
+
+kubectl get secret —namespace prometheus stable-grafana -o jsonpath=“{.data.admin-password}”| base64 —decode; echo
+
+
+Click on the world icon for metrics exposed
+
+￼
+
+Go to Dashboard —> News—> Import (Provide grafana chart Id to import the chart) or choose grafana exposed charts like below
+
+￼
+
+
+Run a deployment file through Kubectl and check the deployment metrics in grafana dashboard
+
+
+Delete Prometheus & grafan use helm uninstall
+
+
+helm uninstall stable -n prometheus
