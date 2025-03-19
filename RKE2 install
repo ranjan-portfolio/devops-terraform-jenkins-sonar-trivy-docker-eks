@@ -1,0 +1,43 @@
+RKE2 Install
+
+
+Server installation
+
+curl -sfL https://get.rke2.io | sh -
+
+systemctl enable rke2-server.service
+
+systemctl start rke2-server.service
+
+journalctl -u rke2-server -f
+
+export PATH=/var/lib/rancher/rke2/bin/:$PATH
+
+* The rke2-server service will be installed. The rke2-server service will be configured to automatically restart after node reboots or if the process crashes or is killed.
+* Additional utilities will be installed at /var/lib/rancher/rke2/bin/. They include: kubectl, crictl, and ctr. Note that these are not on your path by default.
+* Two cleanup scripts, rke2-killall.sh and rke2-uninstall.sh, will be installed to the path at:
+    * /usr/local/bin for regular file systems
+    * /opt/rke2/bin for read-only and brtfs file systems
+    * INSTALL_RKE2_TAR_PREFIX/bin if INSTALL_RKE2_TAR_PREFIX is set
+* A kubeconfig file will be written to /etc/rancher/rke2/rke2.yaml.
+* A token that can be used to register other server or agent nodes will be created at /var/lib/rancher/rke2/server/node-token
+
+
+Agent Installation
+
+curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE="agent" sh -
+
+systemctl enable rke2-agent.service
+
+
+mkdir -p /etc/rancher/rke2/
+vim /etc/rancher/rke2/config.yaml
+
+server: https://<server>:9345. — <server> Internal IP fro RKE2 server
+token: <token from server node> — /var/lib/rancher/rke2/server/node-token in server
+
+systemctl start rke2-agent.service
+
+
+journalctl -u rke2-agent -f
+
