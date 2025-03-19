@@ -1,0 +1,146 @@
+Installing Rancher on AWS 
+
+Installing rancher
+
+
+1.
+eksctl create cluster \
+  --name rancher-server \
+  --version 1.30 \
+  --region us-east-1 \
+  --nodegroup-name ranchernodes \
+  --nodes 3 \
+  --nodes-min 1 \
+  --nodes-max 4 \
+  --managed
+
+2.
+
+eksctl get cluster (Check if cluster details are retrieved by the command)
+
+3. Install an Ingress. (In this case nginx)
+
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm search repo ingress-nginx -l
+
+
+4.
+
+helm upgrade --install \
+  ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --set controller.service.type=LoadBalancer \
+  --version 4.11.2 \
+  --create-namespace
+
+5. Get load balancer details
+
+kubectl get service ingress-nginx-controller --namespace=ingress-nginx
+
+6. Set up DNS pointing to load balancer created in point 5
+
+Use Route 53 to point create an A record and pointing alias to ingress LB url.
+
+7. Installing cert manager
+
+1. helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
+2. kubectl create namespace cattle-system
+3. kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.3/cert-manager.yaml
+
+8. Installing rancher through Helm
+
+helm install rancher rancher-stable/rancher \
+  --namespace cattle-system \
+  --set hostname=a08f089bfaf704d2899ad7e915272849-1632988931.us-east-1.elb.amazonaws.com \
+  --set bootstrapPassword=admin \
+  --set ingress.ingressClassName=nginx
+
+9. The below additional step done to enable service account to access to access cluster resources
+
+kubectl apply -f rancher-clusterrolebinding.yml
+
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    meta.helm.sh/release-name: rancher
+    meta.helm.sh/release-namespace: cattle-system
+  finalizers:
+  - wrangler.cattle.io/auth-prov-v2-crb
+  labels:
+    app: rancher
+    app.kubernetes.io/managed-by: Helm
+    chart: rancher-2.9.2 //check the chart name before installing
+    heritage: Helm
+    release: rancher
+  name: rancher
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: rancher
+  namespace: cattle-system
+
+
+
+
+
+https://a08f089bfaf704d2899ad7e915272849-1632988931.us-east-1.elb.amazonaws.com/dashboard/?setup=admin
+
+
+NAME: rancher
+LAST DEPLOYED: Sat Sep 28 20:48:53 2024
+NAMESPACE: cattle-system
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+Rancher Server has been installed.
+
+NOTE: Rancher may take several minutes to fully initialize. Please standby while Certificates are being issued, Containers are started and the Ingress rule comes up.
+
+Check out our docs at https://rancher.com/docs/
+
+If you provided your own bootstrap password during installation, browse to https://a08f089bfaf704d2899ad7e915272849-1632988931.us-east-1.elb.amazonaws.com to get started.
+
+If this is the first time you installed Rancher, get started by running this command and clicking the URL it generates:
+
+```
+echo https://a08f089bfaf704d2899ad7e915272849-1632988931.us-east-1.elb.amazonaws.com/dashboard/?setup=$(kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}')
+```
+
+To get just the bootstrap password on its own, run:
+
+```
+kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}{{ "\n" }}'
+
+```
+
+
+For DNS  below Route53 DNS server
+
+
+* ns-361.awsdns-45.com
+* ns-960.awsdns-56.net
+* ns-2039.awsdns-62.co.uk
+* ns-1271.awsdns-30.org
+
+
+REFS
+
+
+https://cert-manager.io/docs/installation/kubectl/
+
+https://ranchermanager.docs.rancher.com/getting-started/installation-and-upgrade/install-upgrade-on-a-kubernetes-cluster/rancher-on-amazon-eks
+
+
+PREREQUISITES
+
+HELM VERSION 3
+EKSCTL
+KUBECTL
+AWS CLI
