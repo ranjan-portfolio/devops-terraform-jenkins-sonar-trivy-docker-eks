@@ -1,0 +1,44 @@
+VPA
+
+1. Create the cluster
+2. Install metric server
+
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+3. Git clone
+
+git clone https://github.com/kubernetes/autoscaler.git
+
+4. Run the command
+./hack/vpa-up.sh
+
+5. Put the hamster.yaml file from the example and deploy it
+6. Observe using kubcetl get pod
+Kubectl top pod <<pod name>>
+7. Kubectl describe vpa (Check the recommendations section detailing cpu and memory requirement to be set for the pod)
+
+Goldilocks
+
+git clone https://github.com/FairwindsOps/goldilocks.git
+cd goldilocks
+kubectl create namespace goldilocks
+kubectl -n goldilocks apply -f hack/manifests/controller
+kubectl -n goldilocks apply -f hack/manifests/dashboard
+
+
+
+
+Any namespace where you want goldilocks to provide data needs to be labeled
+
+kubectl label ns goldilocks goldilocks.fairwinds.com/enabled=true
+
+``As our services are running in default namespace
+
+kubectl label ns default goldilocks.fairwinds.com/enabled=true
+
+
+To enable dashboard
+
+kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80
+
+Don’t use it in production as it restarts the pods
