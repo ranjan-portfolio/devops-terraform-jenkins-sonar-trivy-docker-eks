@@ -1,0 +1,102 @@
+HPA
+
+Start EKS cluster
+
+Eksctl create cluster
+
+Check if metric server is installed
+
+Kubectl get deployment metrics-server -n kube-system
+
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+
+Run a resource deployment and service, for example below resources has been deployed for the test purpose
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-apache
+spec:
+  selector:
+    matchLabels:
+      run: php-apache
+  template:
+    metadata:
+      labels:
+        run: php-apache
+    spec:
+      containers:
+      - name: php-apache
+        image: registry.k8s.io/hpa-example
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+          requests:
+            cpu: 200m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php-apache
+  labels:
+    run: php-apache
+spec:
+  ports:
+  - port: 80
+  selector:
+    run: php-apache
+
+
+Install HPA
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: php-apache
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: php-apache
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+
+
+Generate load (please do it in a separate terminal)
+
+kubectl run -i --tty load-generator --rm --image=busybox:1.28 --restart=Never -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://php-apache; done"
+
+Watch hpa
+
+Kubectl get hpa —watch
+
+
+Protips:
+
+If hpa reports CPU as Unknown ,Please check if metric server is installed properly
+
+Scaling up is fast but scaling down is not due to a cooling period
+
+Stop the load generator
+
+Watch the hpa pod replicas go down from 7 to 1
+
+Deleting cluster
+
+Eksctl get cluster
+
+Eksctl delete cluster —name <<name of the cluster>>
+
+
+
